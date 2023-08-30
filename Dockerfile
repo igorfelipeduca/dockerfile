@@ -1,5 +1,5 @@
 # Use a base image
-FROM node:14
+FROM --platform=linux/amd64 node:14.17.0-alpine
 
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
