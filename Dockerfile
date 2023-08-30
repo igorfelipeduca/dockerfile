@@ -1,20 +1,36 @@
-# Use a base image
-FROM node:14
+FROM node as builder
 
-# Define o diretório de trabalho dentro do container
-WORKDIR /app
+# Create app directory
+WORKDIR /usr/src/app
 
-# Copia o package.json e o package-lock.json para o diretório de trabalho
-COPY package*.json ./
+# Install app dependencies
+COPY package.json yarn.lock ./
 
-# Instala as dependências do projeto
-RUN npm install
+RUN yarn install --frozen-lockfile
 
-# Copia todo o código fonte para o diretório de trabalho
 COPY . .
 
-# Expõe a porta 3000
-EXPOSE 3000
+RUN yarn build
 
-# Comando para iniciar a aplicação quando o container for executado
-CMD ["yarn", "dev"]
+# Generate Prisma Client
+RUN yarn prisma generate
+
+FROM node:slim
+
+ENV NODE_ENV production
+USER node
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Install app dependencies
+COPY package.json yarn.lock ./
+
+RUN yarn install --production --frozen-lockfile
+
+# Copy Prisma Client from builder stage
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/dist ./dist
+
+EXPOSE 8080
+CMD [ "node", "dist/index.js" ]
